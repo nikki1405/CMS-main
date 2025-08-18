@@ -127,14 +127,14 @@ export default function AdminPage() {
 
   const handleLogout = () => {
     localStorage.removeItem("adminLoggedIn")
-    router.push("/login")
+    router.push("/admin/login")
   }
 
   useEffect(() => {
     const checkAuthStatus = () => {
       const loggedIn = localStorage.getItem("adminLoggedIn") === "true"
       if (!loggedIn) {
-        router.push("/login")
+        router.push("/admin/login")
         return
       }
       setIsCheckingAuth(false)

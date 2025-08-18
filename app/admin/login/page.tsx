@@ -1,7 +1,5 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -22,8 +20,9 @@ export default function AdminLogin() {
 
     // Simulate loading for better UX
     setTimeout(() => {
+      localStorage.setItem("adminLoggedIn", "true") // <-- set login flag
       setIsLoading(false)
-      router.push("/admin")
+      router.push("/admin") // <-- redirect to admin page
     }, 1000)
   }
 
