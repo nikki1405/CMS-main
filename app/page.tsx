@@ -31,7 +31,6 @@ const getStoredData = () => {
       return JSON.parse(stored)
     }
   }
-
   // Default data structure
   return {
     pages: {
@@ -68,6 +67,7 @@ const getStoredData = () => {
 
 export default function HomePage() {
   const [data, setData] = useState<any>(null)
+  const [currentPageId, setCurrentPageId] = useState<string>("content")
 
   useEffect(() => {
     setData(getStoredData())
@@ -78,10 +78,8 @@ export default function HomePage() {
       }
     }
 
-    // Listen for localStorage changes from other tabs/windows
     window.addEventListener("storage", handleStorageChange)
 
-    // Also listen for changes within the same tab using custom event
     const handleCustomStorageChange = () => {
       setData(getStoredData())
     }
@@ -94,11 +92,19 @@ export default function HomePage() {
     }
   }, [])
 
+  useEffect(() => {
+    // If data changes, reset to first page if currentPageId is missing
+    if (data && (!data.pages[currentPageId] || Object.keys(data.pages).length === 0)) {
+      setCurrentPageId(Object.keys(data.pages)[0] || "content")
+    }
+  }, [data, currentPageId])
+
   if (!data) {
     return <div>Loading...</div>
   }
 
-  const currentPage = data.pages.content
+  const pagesArray: Page[] = Object.values(data.pages)
+  const currentPage: Page = data.pages[currentPageId] || pagesArray[0]
 
   return (
     <div className="min-h-screen bg-[#f0f2f5]">
@@ -111,23 +117,19 @@ export default function HomePage() {
           </div>
 
           <nav className="hidden md:flex items-center gap-4 lg:gap-8">
-            {["Dashboard", "Content", "Analytics", "Settings"].map((label) => (
+            {pagesArray.map((page) => (
               <button
-                key={label}
-                className={`text-[#61758a] hover:text-[#121417] font-medium${label === "Dashboard" ? " text-[#121417]" : ""}`}
-                onClick={() => {
-                  // No-op: always show the same page
-                  // If you add more pages, set the page state here
-                }}
+                key={page.id}
+                className={`text-[#61758a] hover:text-[#121417] font-medium${currentPageId === page.id ? " text-[#121417] font-bold" : ""}`}
+                onClick={() => setCurrentPageId(page.id)}
               >
-                {label}
+                {page.name}
               </button>
             ))}
           </nav>
 
           <div className="flex items-center gap-2 sm:gap-4">
             <Bell className="w-5 h-5 text-[#61758a]" />
-            {/* Profile icon removed */}
           </div>
         </div>
       </header>
