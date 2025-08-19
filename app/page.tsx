@@ -3,12 +3,16 @@
 import { useState, useEffect } from "react"
 import { Bell } from "lucide-react"
 
+interface ImageItem {
+  url: string
+  alt: string
+}
+
 interface ContentSection {
   id: string
   title: string
   description: string
-  imageUrl: string
-  imageAlt: string
+  images: ImageItem[]
 }
 
 interface Page {
@@ -18,8 +22,7 @@ interface Page {
   featuredSection: {
     title: string
     description: string
-    imageUrl: string
-    imageAlt: string
+    images: ImageItem[]
   }
   contentSections: ContentSection[]
 }
@@ -41,23 +44,26 @@ const getStoredData = () => {
         featuredSection: {
           title: "Elevate Your Brand with Compelling Content",
           description: "Craft and manage engaging content that resonates with your audience and drives results.",
-          imageUrl: "/placeholder.svg?height=200&width=400",
-          imageAlt: "Modern office workspace",
+          images: [
+            { url: "/placeholder.svg?height=200&width=400", alt: "Modern office workspace" }
+          ],
         },
         contentSections: [
           {
             id: "1",
             title: "Boost Engagement with Visual Stories",
             description: "Create captivating visual narratives that capture attention and leave a lasting impression.",
-            imageUrl: "/placeholder.svg?height=200&width=400",
-            imageAlt: "Visual storytelling concept",
+            images: [
+              { url: "/placeholder.svg?height=200&width=400", alt: "Visual storytelling concept" }
+            ],
           },
           {
             id: "2",
             title: "Optimize Your Content for Maximum Impact",
             description: "Refine your content strategy with data-driven insights to achieve your business goals.",
-            imageUrl: "/placeholder.svg?height=200&width=400",
-            imageAlt: "Content optimization analytics",
+            images: [
+              { url: "/placeholder.svg?height=200&width=400", alt: "Content optimization analytics" }
+            ],
           },
         ],
       },
@@ -147,12 +153,17 @@ export default function HomePage() {
               </h2>
               <p className="text-[#61758a] mb-4">{currentPage.featuredSection.description}</p>
             </div>
-            <div className="flex-shrink-0 w-full lg:w-auto flex justify-center items-center">
-              <img
-                src={currentPage.featuredSection.imageUrl || "/placeholder.svg"}
-                alt={currentPage.featuredSection.imageAlt}
-                className="rounded-lg w-full max-w-[360px] h-[200px] object-cover"
-              />
+            <div className="flex-shrink-0 w-full lg:w-auto flex flex-col items-center">
+              <div className="flex flex-wrap gap-4 justify-center mb-2 w-full">
+                {currentPage.featuredSection.images?.map((img, idx) => (
+                  <img
+                    key={idx}
+                    src={img.url}
+                    alt={img.alt}
+                    className="rounded-lg w-full max-w-[360px] h-[200px] object-cover"
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -165,12 +176,17 @@ export default function HomePage() {
                   <h3 className="text-base sm:text-lg font-semibold text-[#121417] mb-3">{section.title}</h3>
                   <p className="text-[#61758a]">{section.description}</p>
                 </div>
-                <div className="flex-shrink-0 w-full lg:w-auto flex justify-center items-center">
-                  <img
-                    src={section.imageUrl || "/placeholder.svg"}
-                    alt={section.imageAlt}
-                    className="rounded-lg w-full max-w-[360px] h-[200px] object-cover"
-                  />
+                <div className="flex-shrink-0 w-full lg:w-auto flex flex-col items-center">
+                  <div className="flex flex-wrap gap-4 justify-center mb-2 w-full">
+                    {section.images?.map((img, idx) => (
+                      <img
+                        key={idx}
+                        src={img.url}
+                        alt={img.alt}
+                        className="rounded-lg w-full max-w-[360px] h-[200px] object-cover"
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

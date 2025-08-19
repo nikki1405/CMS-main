@@ -8,12 +8,16 @@ import { Input } from "@/components/ui/input"
 import { Bell, FileText, Plus, Edit2, X, Upload, Check } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 
+interface ImageItem {
+  url: string
+  alt: string
+}
+
 interface ContentSection {
   id: string
   title: string
   description: string
-  imageUrl: string
-  imageAlt: string
+  images: ImageItem[]
 }
 
 interface Page {
@@ -23,8 +27,7 @@ interface Page {
   featuredSection: {
     title: string
     description: string
-    imageUrl: string
-    imageAlt: string
+    images: ImageItem[]
   }
   contentSections: ContentSection[]
 }
@@ -33,7 +36,25 @@ const getStoredData = () => {
   if (typeof window !== "undefined") {
     const stored = localStorage.getItem("cmsData")
     if (stored) {
-      return JSON.parse(stored)
+      try {
+        const parsed = JSON.parse(stored)
+        const sanitizedPages = Object.values(parsed.pages || {}).map((page: any) => ({
+          ...page,
+          featuredSection: {
+            ...page.featuredSection,
+            images: Array.isArray(page.featuredSection?.images) ? page.featuredSection.images : [],
+          },
+          contentSections: Array.isArray(page.contentSections)
+            ? page.contentSections.map((section: any) => ({
+                ...section,
+                images: Array.isArray(section.images) ? section.images : [],
+              }))
+            : [],
+        }))
+        return { pages: sanitizedPages.reduce((acc: any, page: Page) => ({ ...acc, [page.id]: page }), {}) }
+      } catch (error) {
+        console.error("Error parsing localStorage data:", error)
+      }
     }
   }
 
@@ -46,23 +67,20 @@ const getStoredData = () => {
         featuredSection: {
           title: "Elevate Your Brand with Compelling Content",
           description: "Craft and manage engaging content that resonates with your audience and drives results.",
-          imageUrl: "/placeholder.svg?height=200&width=400",
-          imageAlt: "Modern office workspace",
+          images: [{ url: "/placeholder.svg?height=200&width=400", alt: "Modern office workspace" }],
         },
         contentSections: [
           {
             id: "1",
             title: "Boost Engagement with Visual Stories",
             description: "Create captivating visual narratives that capture attention and leave a lasting impression.",
-            imageUrl: "/placeholder.svg?height=200&width=400",
-            imageAlt: "Visual storytelling concept",
+            images: [{ url: "/placeholder.svg?height=200&width=400", alt: "Visual storytelling concept" }],
           },
           {
             id: "2",
             title: "Optimize Your Content for Maximum Impact",
             description: "Refine your content strategy with data-driven insights to achieve your business goals.",
-            imageUrl: "/placeholder.svg?height=200&width=400",
-            imageAlt: "Content optimization analytics",
+            images: [{ url: "/placeholder.svg?height=200&width=400", alt: "Content optimization analytics" }],
           },
         ],
       },
@@ -74,23 +92,26 @@ const defaultPageData = {
   featuredSection: {
     title: "Elevate Your Brand with Compelling Content",
     description: "Craft and manage engaging content that resonates with your audience and drives results.",
-    imageUrl: "/placeholder.svg?height=200&width=400",
-    imageAlt: "Modern office workspace",
+    images: [
+      { url: "/placeholder.svg?height=200&width=400", alt: "Modern office workspace" }
+    ],
   },
   contentSections: [
     {
       id: "1",
       title: "Boost Engagement with Visual Stories",
       description: "Create captivating visual narratives that capture attention and leave a lasting impression.",
-      imageUrl: "/placeholder.svg?height=200&width=400",
-      imageAlt: "Visual storytelling concept",
+      images: [
+        { url: "/placeholder.svg?height=200&width=400", alt: "Visual storytelling concept" }
+      ],
     },
     {
       id: "2",
       title: "Optimize Your Content for Maximum Impact",
       description: "Refine your content strategy with data-driven insights to achieve your business goals.",
-      imageUrl: "/placeholder.svg?height=200&width=400",
-      imageAlt: "Content optimization analytics",
+      images: [
+        { url: "/placeholder.svg?height=200&width=400", alt: "Content optimization analytics" }
+      ],
     },
   ],
 }
@@ -98,28 +119,21 @@ const defaultPageData = {
 export default function AdminPage() {
   const router = useRouter()
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
-
   const [pages, setPages] = useState<Page[]>([])
   const [currentView, setCurrentView] = useState("content")
   const [currentPage, setCurrentPage] = useState<Page | null>(null)
-
   const [isEditingPageName, setIsEditingPageName] = useState(false)
   const [tempPageName, setTempPageName] = useState("")
-
   const [showNewPageModal, setShowNewPageModal] = useState(false)
   const [newPageName, setNewPageName] = useState("")
-
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [tempTitle, setTempTitle] = useState("")
-
   const [showImageUpload, setShowImageUpload] = useState(false)
-  const [uploadingFor, setUploadingFor] = useState<{ type: "featured" | "section"; id?: string } | null>(null)
-
+  const [uploadingFor, setUploadingFor] = useState<{ type: "featured" | "section" | "add"; id?: string } | null>(null)
   const [isEditingFeaturedTitle, setIsEditingFeaturedTitle] = useState(false)
   const [isEditingFeaturedDesc, setIsEditingFeaturedDesc] = useState(false)
   const [tempFeaturedTitle, setTempFeaturedTitle] = useState("")
   const [tempFeaturedDesc, setTempFeaturedDesc] = useState("")
-
   const [editingSectionTitle, setEditingSectionTitle] = useState<string | null>(null)
   const [editingSectionDesc, setEditingSectionDesc] = useState<string | null>(null)
   const [tempSectionTitle, setTempSectionTitle] = useState("")
@@ -144,16 +158,15 @@ export default function AdminPage() {
   }, [router])
 
   useEffect(() => {
-    // Load pages from localStorage only once on mount
     const data = getStoredData()
-    const pagesArray = Object.values(data.pages) as Page[]
+    const pagesArray = Object.values(data.pages || {}) as Page[]
     setPages(pagesArray)
     setCurrentView(pagesArray[0]?.id || "content")
   }, [])
 
   useEffect(() => {
-    const page = pages.find((p) => p.id === currentView)
-    setCurrentPage(page || null)
+    const page = pages.find((p) => p.id === currentView) || null
+    setCurrentPage(page)
   }, [pages, currentView])
 
   useEffect(() => {
@@ -165,15 +178,14 @@ export default function AdminPage() {
         }, {} as any),
       }
       localStorage.setItem("cmsData", JSON.stringify(data))
-
       window.dispatchEvent(new CustomEvent("cmsDataUpdated"))
     }
   }, [pages])
 
   const handleNavigation = (view: string) => {
     setCurrentView(view)
-    const page = pages.find((p) => p.id === view)
-    setCurrentPage(page || null)
+    const page = pages.find((p) => p.id === view) || null
+    setCurrentPage(page)
   }
 
   const handleEditPageName = () => {
@@ -197,10 +209,11 @@ export default function AdminPage() {
       id: newId,
       name: newPageName,
       title: newPageName,
-      featuredSection: { ...defaultPageData.featuredSection },
-      contentSections: defaultPageData.contentSections.map(section => ({
+      featuredSection: { ...defaultPageData.featuredSection, images: [...defaultPageData.featuredSection.images] },
+      contentSections: defaultPageData.contentSections.map((section) => ({
         ...section,
-        id: String(Date.now()) + Math.random().toString(36).slice(2, 8), // unique id for each section
+        id: String(Date.now()) + Math.random().toString(36).slice(2, 8),
+        images: [...section.images],
       })),
     }
     setPages((prev) => [...prev, newPage])
@@ -224,13 +237,13 @@ export default function AdminPage() {
     }
   }
 
-  const handleCancelTitleEdit = () => {
-    setIsEditingTitle(false)
-    setTempTitle("")
-  }
-
   const handleEditFeaturedImage = () => {
     setUploadingFor({ type: "featured" })
+    setShowImageUpload(true)
+  }
+
+  const handleAddFeaturedImage = () => {
+    setUploadingFor({ type: "add" })
     setShowImageUpload(true)
   }
 
@@ -239,27 +252,56 @@ export default function AdminPage() {
     setShowImageUpload(true)
   }
 
+  const handleAddSectionImage = (sectionId: string) => {
+    setUploadingFor({ type: "add", id: sectionId })
+    setShowImageUpload(true)
+  }
+
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file && uploadingFor && currentPage) {
       const imageUrl = URL.createObjectURL(file)
-
       if (uploadingFor.type === "featured") {
+        const updatedImages = [
+          { url: imageUrl, alt: `Featured image` },
+          ...currentPage.featuredSection.images.slice(1),
+        ]
         const updatedPage = {
           ...currentPage,
-          featuredSection: { ...currentPage.featuredSection, imageUrl },
+          featuredSection: { ...currentPage.featuredSection, images: updatedImages },
         }
         setPages((prev) => prev.map((p) => (p.id === currentPage.id ? updatedPage : p)))
         setCurrentPage(updatedPage)
       } else if (uploadingFor.type === "section" && uploadingFor.id) {
         const updatedSections = currentPage.contentSections.map((s) =>
-          s.id === uploadingFor.id ? { ...s, imageUrl } : s,
+          s.id === uploadingFor.id
+            ? { ...s, images: [{ url: imageUrl, alt: `Section image` }, ...s.images.slice(1)] }
+            : s
         )
         const updatedPage = { ...currentPage, contentSections: updatedSections }
         setPages((prev) => prev.map((p) => (p.id === currentPage.id ? updatedPage : p)))
         setCurrentPage(updatedPage)
+      } else if (uploadingFor.type === "add" && uploadingFor.id) {
+        const updatedSections = currentPage.contentSections.map((s) =>
+          s.id === uploadingFor.id
+            ? { ...s, images: [...s.images, { url: imageUrl, alt: `Section image ${s.images.length + 1}` }] }
+            : s
+        )
+        const updatedPage = { ...currentPage, contentSections: updatedSections }
+        setPages((prev) => prev.map((p) => (p.id === currentPage.id ? updatedPage : p)))
+        setCurrentPage(updatedPage)
+      } else if (uploadingFor.type === "add") {
+        const updatedImages = [
+          ...currentPage.featuredSection.images,
+          { url: imageUrl, alt: `Featured image ${currentPage.featuredSection.images.length + 1}` }
+        ]
+        const updatedPage = {
+          ...currentPage,
+          featuredSection: { ...currentPage.featuredSection, images: updatedImages },
+        }
+        setPages((prev) => prev.map((p) => (p.id === currentPage.id ? updatedPage : p)))
+        setCurrentPage(updatedPage)
       }
-
       setShowImageUpload(false)
       setUploadingFor(null)
     }
@@ -347,12 +389,34 @@ export default function AdminPage() {
     }
   }
 
-  const handleDeleteFeaturedImage = () => {
+  const handleDeleteFeaturedImage = (index: number = 0) => {
     if (confirm("Are you sure you want to delete this image?") && currentPage) {
+      const updatedImages = currentPage.featuredSection.images.filter((_, i) => i !== index)
       const updatedPage = {
         ...currentPage,
-        featuredSection: { ...currentPage.featuredSection, imageUrl: "", imageAlt: "" },
+        featuredSection: {
+          ...currentPage.featuredSection,
+          images: updatedImages.length > 0 ? updatedImages : [{ url: "/placeholder.svg?height=200&width=400", alt: "Placeholder" }],
+        },
       }
+      setPages((prev) => prev.map((p) => (p.id === currentPage.id ? updatedPage : p)))
+      setCurrentPage(updatedPage)
+    }
+  }
+
+  const handleDeleteSectionImage = (sectionId: string, index: number = 0) => {
+    if (confirm("Are you sure you want to delete this image?") && currentPage) {
+      const updatedSections = currentPage.contentSections.map((s) =>
+        s.id === sectionId
+          ? {
+              ...s,
+              images: s.images.filter((_, i) => i !== index).length > 0
+                ? s.images.filter((_, i) => i !== index)
+                : [{ url: "/placeholder.svg?height=150&width=200", alt: "Placeholder" }],
+            }
+          : s,
+      )
+      const updatedPage = { ...currentPage, contentSections: updatedSections }
       setPages((prev) => prev.map((p) => (p.id === currentPage.id ? updatedPage : p)))
       setCurrentPage(updatedPage)
     }
@@ -364,17 +428,6 @@ export default function AdminPage() {
         ...currentPage,
         featuredSection: { ...currentPage.featuredSection, description: "" },
       }
-      setPages((prev) => prev.map((p) => (p.id === currentPage.id ? updatedPage : p)))
-      setCurrentPage(updatedPage)
-    }
-  }
-
-  const handleDeleteSectionImage = (sectionId: string) => {
-    if (confirm("Are you sure you want to delete this image?") && currentPage) {
-      const updatedSections = currentPage.contentSections.map((s) =>
-        s.id === sectionId ? { ...s, imageUrl: "", imageAlt: "" } : s,
-      )
-      const updatedPage = { ...currentPage, contentSections: updatedSections }
       setPages((prev) => prev.map((p) => (p.id === currentPage.id ? updatedPage : p)))
       setCurrentPage(updatedPage)
     }
@@ -406,8 +459,7 @@ export default function AdminPage() {
         id: Date.now().toString(),
         title: "New Section Title",
         description: "New section description",
-        imageUrl: "/placeholder.svg?height=150&width=200",
-        imageAlt: "New content section",
+        images: [{ url: "/placeholder.svg?height=150&width=200", alt: "New content section" }],
       }
       const updatedSections = [...currentPage.contentSections, newSection]
       const updatedPage = { ...currentPage, contentSections: updatedSections }
@@ -419,7 +471,6 @@ export default function AdminPage() {
   const handleDeletePage = () => {
     if (confirm("Are you sure you want to delete this entire page? This action cannot be undone.") && currentPage) {
       setPages((prev) => prev.filter((p) => p.id !== currentPage.id))
-      // Navigate to content page after deletion
       setCurrentView("content")
       setCurrentPage(pages.find((p) => p.id === "content") || null)
     }
@@ -430,364 +481,8 @@ export default function AdminPage() {
     console.log("[v0] Saving page data:", currentPage)
   }
 
-  const renderContent = () => {
-    if (!currentPage) return null
-
-    return (
-      <div className="max-w-4xl">
-        <div className="bg-[#ffffff] rounded-lg p-4 mb-6 border border-[#dbe0e5]">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-[#61758a] text-sm">Page Name:</span>
-              {isEditingPageName ? (
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={tempPageName}
-                    onChange={(e) => setTempPageName(e.target.value)}
-                    className="border-[#dbe0e5]"
-                    autoFocus
-                  />
-                  <Button size="sm" onClick={handleSavePageName} className="bg-green-600 hover:bg-green-700">
-                    <Check className="w-4 h-4" />
-                  </Button>
-                </div>
-              ) : (
-                <>
-                  <span className="font-medium text-[#121417]">{currentPage.name}</span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-[#dbe0e5] text-[#61758a] hover:bg-[#f0f2f5] bg-transparent ml-2"
-                    onClick={handleEditPageName}
-                  >
-                    <Edit2 className="w-3 h-3 mr-1" />
-                    Edit
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Header Section with inline editing */}
-        <div className="flex items-center justify-between mb-8">
-          {isEditingTitle ? (
-            <div className="flex items-center gap-2 flex-1">
-              <Input
-                value={tempTitle}
-                onChange={(e) => setTempTitle(e.target.value)}
-                className="text-3xl font-bold border-[#dbe0e5] max-w-md"
-                autoFocus
-              />
-              <Button size="sm" onClick={handleSaveTitle} className="bg-green-600 hover:bg-green-700">
-                <Check className="w-4 h-4" />
-              </Button>
-            </div>
-          ) : (
-            <>
-              <h1 className="text-3xl font-bold text-[#121417]">{currentPage.title}</h1>
-              <Button
-                variant="outline"
-                className="border-[#dbe0e5] text-[#61758a] hover:bg-[#f0f2f5] bg-transparent"
-                onClick={handleEditHeading}
-              >
-                <Edit2 className="w-4 h-4 mr-2" />
-                Edit Heading
-              </Button>
-            </>
-          )}
-        </div>
-
-        {/* Featured Section with inline editing */}
-        <div className="bg-[#ffffff] rounded-lg p-6 mb-8 border border-[#dbe0e5]">
-          <div className="flex justify-between items-start mb-4">
-            <div className="flex-1">
-              <p className="text-[#61758a] text-sm mb-2">Featured</p>
-
-              {/* Inline title editing */}
-              {isEditingFeaturedTitle ? (
-                <div className="flex items-center gap-2 mb-3">
-                  <Input
-                    value={tempFeaturedTitle}
-                    onChange={(e) => setTempFeaturedTitle(e.target.value)}
-                    className="text-xl font-semibold border-[#dbe0e5]"
-                    autoFocus
-                  />
-                  <Button size="sm" onClick={handleSaveFeaturedTitle} className="bg-green-600 hover:bg-green-700">
-                    <Check className="w-4 h-4" />
-                  </Button>
-                </div>
-              ) : (
-                <h2
-                  className="text-xl font-semibold text-[#121417] mb-3 cursor-pointer hover:bg-[#f0f2f5] p-1 rounded"
-                  onClick={handleEditFeaturedTitle}
-                >
-                  {currentPage.featuredSection.title}
-                </h2>
-              )}
-
-              {/* Inline description editing */}
-              {isEditingFeaturedDesc ? (
-                <div className="flex items-start gap-2 mb-4">
-                  <Textarea
-                    value={tempFeaturedDesc}
-                    onChange={(e) => setTempFeaturedDesc(e.target.value)}
-                    className="border-[#dbe0e5] resize-none"
-                    rows={3}
-                    autoFocus
-                  />
-                  <div className="flex flex-col gap-1">
-                    <Button size="sm" onClick={handleSaveFeaturedDesc} className="bg-green-600 hover:bg-green-700">
-                      <Check className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                currentPage.featuredSection.description && (
-                  <p
-                    className="text-[#61758a] mb-4 cursor-pointer hover:bg-[#f0f2f5] p-1 rounded"
-                    onClick={handleEditFeaturedDescription}
-                  >
-                    {currentPage.featuredSection.description}
-                  </p>
-                )
-              )}
-            </div>
-            <div className="ml-6 flex flex-col">
-              {currentPage.featuredSection.imageUrl && (
-                <img
-                  src={currentPage.featuredSection.imageUrl || "/placeholder.svg"}
-                  alt={currentPage.featuredSection.imageAlt}
-                  className="rounded-lg w-80 h-48 object-cover mb-2"
-                />
-              )}
-              <div className="flex gap-2 justify-end">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-[#dbe0e5] text-[#61758a] bg-transparent"
-                  onClick={handleEditFeaturedImage}
-                >
-                  Edit Image
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-[#dbe0e5] text-[#61758a] bg-transparent"
-                  onClick={() => {
-                    if (confirm("Are you sure you want to delete this image?")) {
-                      handleDeleteFeaturedImage()
-                    }
-                  }}
-                >
-                  Delete Image
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-[#dbe0e5] text-[#61758a] bg-transparent"
-              onClick={handleEditFeaturedDescription}
-            >
-              Edit Description
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-[#dbe0e5] text-[#61758a] bg-transparent"
-              onClick={() => {
-                if (confirm("Are you sure you want to delete this description?")) {
-                  handleDeleteFeaturedDescription()
-                }
-              }}
-            >
-              Delete Description
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-[#dbe0e5] text-[#61758a] bg-transparent"
-              onClick={() => {
-                if (confirm("Are you sure you want to delete this section?")) {
-                  // handleDeleteSection("featured")
-                }
-              }}
-            >
-              Delete Section
-            </Button>
-          </div>
-        </div>
-
-        {/* Additional Content Section */}
-        <h2 className="text-2xl font-semibold text-[#121417] mb-6">Additional Content</h2>
-
-        {currentPage.contentSections.map((section) => (
-          <div key={section.id} className="bg-[#ffffff] rounded-lg p-6 mb-6 border border-[#dbe0e5]">
-            <div className="flex justify-between items-start mb-4">
-              <div className="flex-1">
-                {/* Inline section title editing */}
-                {editingSectionTitle === section.id ? (
-                  <div className="flex items-center gap-2 mb-3">
-                    <Input
-                      value={tempSectionTitle}
-                      onChange={(e) => setTempSectionTitle(e.target.value)}
-                      className="text-lg font-semibold border-[#dbe0e5]"
-                      autoFocus
-                    />
-                    <Button
-                      size="sm"
-                      onClick={() => handleSaveSectionTitle(section.id)}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      <Check className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <h3
-                    className="text-lg font-semibold text-[#121417] mb-3 cursor-pointer hover:bg-[#f0f2f5] p-1 rounded"
-                    onClick={() => handleEditSectionTitle(section.id)}
-                  >
-                    {section.title}
-                  </h3>
-                )}
-
-                {/* Inline section description editing */}
-                {editingSectionDesc === section.id ? (
-                  <div className="flex items-start gap-2">
-                    <Textarea
-                      value={tempSectionDesc}
-                      onChange={(e) => setTempSectionDesc(e.target.value)}
-                      className="border-[#dbe0e5] resize-none"
-                      rows={2}
-                      autoFocus
-                    />
-                    <div className="flex gap-1">
-                      <Button
-                        size="sm"
-                        onClick={() => handleSaveSectionDesc(section.id)}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <Check className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  section.description && (
-                    <p
-                      className="text-[#61758a] cursor-pointer hover:bg-[#f0f2f5] p-1 rounded"
-                      onClick={() => handleEditSectionDescription(section.id)}
-                    >
-                      {section.description}
-                    </p>
-                  )
-                )}
-              </div>
-              <div className="ml-6 flex flex-col">
-                {section.imageUrl && (
-                  <img
-                    src={section.imageUrl || "/placeholder.svg"}
-                    alt={section.imageAlt}
-                    className="rounded-lg w-60 h-36 object-cover mb-2"
-                  />
-                )}
-                <div className="flex gap-2 justify-end">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-[#dbe0e5] text-[#61758a] bg-transparent"
-                    onClick={() => {
-                      setUploadingFor({ type: "section", id: section.id })
-                      setShowImageUpload(true)
-                    }}
-                  >
-                    Edit Image
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-[#dbe0e5] text-[#61758a] bg-transparent"
-                    onClick={() => {
-                      if (confirm("Are you sure you want to delete this image?")) {
-                        handleDeleteSectionImage(section.id)
-                      }
-                    }}
-                  >
-                    Delete Image
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-[#dbe0e5] text-[#61758a] bg-transparent"
-                onClick={() => handleEditSectionDescription(section.id)}
-              >
-                Edit Description
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-[#dbe0e5] text-[#61758a] bg-transparent"
-                onClick={() => {
-                  if (confirm("Are you sure you want to delete this description?")) {
-                    handleDeleteSectionDescription(section.id)
-                  }
-                }}
-              >
-                Delete Description
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-[#dbe0e5] text-[#61758a] bg-transparent"
-                onClick={() => {
-                  if (confirm("Are you sure you want to delete this entire section?")) {
-                    handleDeleteSection(section.id)
-                  }
-                }}
-              >
-                Delete Section
-              </Button>
-            </div>
-          </div>
-        ))}
-
-        {/* Bottom Actions */}
-        <div className="flex justify-between items-center">
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="border-[#dbe0e5] text-[#61758a] bg-transparent"
-              onClick={handleAddSection}
-            >
-              Add Section
-            </Button>
-            <Button
-              variant="outline"
-              className="border-[#dbe0e5] text-[#61758a] bg-transparent"
-              onClick={() => {
-                if (confirm("Are you sure you want to delete this entire page? This action cannot be undone.")) {
-                  handleDeletePage()
-                }
-              }}
-            >
-              Delete Page
-            </Button>
-          </div>
-
-          <Button className="bg-[#0d80f2] hover:bg-[#0d80f2]/90 text-white px-8" onClick={handleSave}>
-            Save
-          </Button>
-        </div>
-      </div>
-    )
+  if (isCheckingAuth || !currentPage) {
+    return <div>Loading...</div>
   }
 
   return (
@@ -862,7 +557,6 @@ export default function AdminPage() {
 
         <main className="flex-1 p-6 sm:p-10 lg:p-16 flex flex-col items-center">
           <div className="w-full max-w-3xl lg:max-w-5xl mx-auto">
-            {/* Page Name Section */}
             <div className="bg-[#ffffff] rounded-lg p-8 sm:p-12 mb-12 border border-[#dbe0e5] flex flex-col items-center">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-center gap-4 w-full">
                 <span className="text-[#61758a] text-lg sm:text-xl">Page Name:</span>
@@ -880,7 +574,7 @@ export default function AdminPage() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-4 justify-center w-full">
-                    <span className="font-bold text-[#121417] text-lg sm:text-xl">{currentPage?.name}</span>
+                    <span className="font-bold text-[#121417] text-lg sm:text-xl">{currentPage.name}</span>
                     {!isEditingPageName && (
                       <Button
                         variant="outline"
@@ -897,7 +591,6 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Heading Section */}
             <div className="flex flex-col items-center mb-12 w-full">
               {isEditingTitle ? (
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full justify-center">
@@ -913,7 +606,7 @@ export default function AdminPage() {
                 </div>
               ) : (
                 <div className="flex flex-col items-center w-full">
-                  <h1 className="text-3xl sm:text-4xl font-bold text-[#121417] text-center w-full mb-2">{currentPage?.title}</h1>
+                  <h1 className="text-3xl sm:text-4xl font-bold text-[#121417] text-center w-full mb-2">{currentPage.title}</h1>
                   <Button
                     variant="outline"
                     className="border-[#dbe0e5] text-[#61758a] hover:bg-[#f0f2f5] bg-transparent w-fit mt-2 px-6 py-3"
@@ -926,7 +619,6 @@ export default function AdminPage() {
               )}
             </div>
 
-            {/* Featured Section */}
             <div className="bg-[#ffffff] rounded-lg p-8 sm:p-12 mb-12 border border-[#dbe0e5] flex flex-col items-center">
               <div className="flex flex-col lg:flex-row lg:justify-center lg:items-center gap-8 lg:gap-16 w-full">
                 <div className="flex-1 flex flex-col items-center">
@@ -952,7 +644,7 @@ export default function AdminPage() {
                       className="text-xl sm:text-2xl font-semibold text-[#121417] mb-4 cursor-pointer hover:bg-[#f0f2f5] p-2 rounded text-center w-full"
                       onClick={handleEditFeaturedTitle}
                     >
-                      {currentPage?.featuredSection.title}
+                      {currentPage.featuredSection.title}
                     </h2>
                   )}
 
@@ -972,7 +664,7 @@ export default function AdminPage() {
                       </div>
                     </div>
                   ) : (
-                    currentPage?.featuredSection.description && (
+                    currentPage.featuredSection.description && (
                       <p
                         className="text-[#61758a] mb-6 cursor-pointer hover:bg-[#f0f2f5] p-2 rounded text-center w-full text-lg"
                         onClick={handleEditFeaturedDescription}
@@ -983,13 +675,25 @@ export default function AdminPage() {
                   )}
                 </div>
                 <div className="flex flex-col items-center w-full lg:w-auto">
-                  {currentPage?.featuredSection.imageUrl && (
-                    <img
-                      src={currentPage.featuredSection.imageUrl || "/placeholder.svg"}
-                      alt={currentPage.featuredSection.imageAlt}
-                      className="rounded-lg w-full max-w-[400px] h-[240px] object-cover mb-4 mx-auto"
-                    />
-                  )}
+                  <div className="flex flex-wrap gap-4 justify-center mb-4 w-full">
+                    {Array.isArray(currentPage.featuredSection.images) &&
+                      currentPage.featuredSection.images.map((img, idx) => (
+                        <div key={idx} className="relative">
+                          <img
+                            src={img.url}
+                            alt={img.alt}
+                            className="rounded-lg w-full max-w-[200px] h-[120px] object-cover"
+                          />
+                          <Button
+                            size="sm"
+                            className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white"
+                            onClick={() => handleDeleteFeaturedImage(idx)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      ))}
+                  </div>
                   <div className="flex flex-wrap gap-4 justify-center">
                     <Button
                       variant="outline"
@@ -997,19 +701,15 @@ export default function AdminPage() {
                       className="border-[#dbe0e5] text-[#61758a] bg-transparent text-base"
                       onClick={handleEditFeaturedImage}
                     >
-                      Edit Image
+                      Replace Image
                     </Button>
                     <Button
                       variant="outline"
                       size="lg"
                       className="border-[#dbe0e5] text-[#61758a] bg-transparent text-base"
-                      onClick={() => {
-                        if (confirm("Are you sure you want to delete this image?")) {
-                          handleDeleteFeaturedImage()
-                        }
-                      }}
+                      onClick={handleAddFeaturedImage}
                     >
-                      Delete Image
+                      Add New Image
                     </Button>
                   </div>
                 </div>
@@ -1028,11 +728,7 @@ export default function AdminPage() {
                   variant="outline"
                   size="lg"
                   className="border-[#dbe0e5] text-[#61758a] bg-transparent text-base"
-                  onClick={() => {
-                    if (confirm("Are you sure you want to delete this description?")) {
-                      handleDeleteFeaturedDescription()
-                    }
-                  }}
+                  onClick={handleDeleteFeaturedDescription}
                 >
                   Delete Description
                 </Button>
@@ -1051,10 +747,9 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Additional Content Section */}
             <h2 className="text-2xl sm:text-3xl font-semibold text-[#121417] mb-8 text-center">Additional Content</h2>
 
-            {currentPage?.contentSections.map((section) => (
+            {currentPage.contentSections.map((section) => (
               <div key={section.id} className="bg-[#ffffff] rounded-lg p-8 sm:p-12 mb-10 border border-[#dbe0e5] flex flex-col items-center">
                 <div className="flex flex-col lg:flex-row lg:justify-center lg:items-center gap-8 lg:gap-16 w-full">
                   <div className="flex-1 flex flex-col items-center">
@@ -1114,36 +809,40 @@ export default function AdminPage() {
                     )}
                   </div>
                   <div className="flex flex-col items-center w-full lg:w-auto">
-                    {section.imageUrl && (
-                      <img
-                        src={section.imageUrl || "/placeholder.svg"}
-                        alt={section.imageAlt}
-                        className="rounded-lg w-full max-w-[400px] h-[240px] object-cover mb-4 mx-auto"
-                      />
-                    )}
+                    <div className="flex flex-wrap gap-4 justify-center mb-4 w-full">
+                      {Array.isArray(section.images) && section.images.map((img, idx) => (
+                        <div key={idx} className="relative">
+                          <img
+                            src={img.url}
+                            alt={img.alt}
+                            className="rounded-lg w-full max-w-[200px] h-[120px] object-cover"
+                          />
+                          <Button
+                            size="sm"
+                            className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white"
+                            onClick={() => handleDeleteSectionImage(section.id, idx)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
                     <div className="flex flex-wrap gap-4 justify-center">
                       <Button
                         variant="outline"
                         size="lg"
                         className="border-[#dbe0e5] text-[#61758a] bg-transparent text-base"
-                        onClick={() => {
-                          setUploadingFor({ type: "section", id: section.id })
-                          setShowImageUpload(true)
-                        }}
+                        onClick={() => handleEditSectionImage(section.id)}
                       >
-                        Edit Image
+                        Replace Image
                       </Button>
                       <Button
                         variant="outline"
                         size="lg"
                         className="border-[#dbe0e5] text-[#61758a] bg-transparent text-base"
-                        onClick={() => {
-                          if (confirm("Are you sure you want to delete this image?")) {
-                            handleDeleteSectionImage(section.id)
-                          }
-                        }}
+                        onClick={() => handleAddSectionImage(section.id)}
                       >
-                        Delete Image
+                        Add New Image
                       </Button>
                     </div>
                   </div>
@@ -1162,11 +861,7 @@ export default function AdminPage() {
                     variant="outline"
                     size="lg"
                     className="border-[#dbe0e5] text-[#61758a] bg-transparent text-base"
-                    onClick={() => {
-                      if (confirm("Are you sure you want to delete this description?")) {
-                        handleDeleteSectionDescription(section.id)
-                      }
-                    }}
+                    onClick={() => handleDeleteSectionDescription(section.id)}
                   >
                     Delete Description
                   </Button>
@@ -1174,11 +869,7 @@ export default function AdminPage() {
                     variant="outline"
                     size="lg"
                     className="border-[#dbe0e5] text-[#61758a] bg-transparent text-base"
-                    onClick={() => {
-                      if (confirm("Are you sure you want to delete this entire section?")) {
-                        handleDeleteSection(section.id)
-                      }
-                    }}
+                    onClick={() => handleDeleteSection(section.id)}
                   >
                     Delete Section
                   </Button>
@@ -1186,7 +877,6 @@ export default function AdminPage() {
               </div>
             ))}
 
-            {/* Bottom Actions */}
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-6 mt-12">
               <div className="flex flex-wrap gap-4 justify-center">
                 <Button
@@ -1201,11 +891,7 @@ export default function AdminPage() {
                   variant="outline"
                   size="lg"
                   className="border-[#dbe0e5] text-[#61758a] bg-transparent text-base"
-                  onClick={() => {
-                    if (confirm("Are you sure you want to delete this entire page? This action cannot be undone.")) {
-                      handleDeletePage()
-                    }
-                  }}
+                  onClick={handleDeletePage}
                 >
                   Delete Page
                 </Button>
@@ -1270,7 +956,9 @@ export default function AdminPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg p-4 sm:p-6 max-w-md w-full">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-[#121417]">Upload Image</h3>
+              <h3 className="text-lg font-semibold text-[#121417]">
+                {uploadingFor?.type === "add" ? "Add Image" : "Upload Image"}
+              </h3>
               <Button
                 variant="outline"
                 size="sm"
