@@ -30,6 +30,7 @@ interface Page {
     images: ImageItem[]
   }
   contentSections: ContentSection[]
+  bannerImage?: ImageItem
 }
 
 const getStoredData = () => {
@@ -589,6 +590,39 @@ export default function AdminPage() {
                   </div>
                 )}
               </div>
+            </div>
+
+            <div className="w-full flex flex-col items-center mb-8">
+              <label className="block text-lg font-semibold mb-2 text-[#121417]">Banner Image</label>
+              {currentPage.bannerImage?.url && (
+                <img
+                  src={currentPage.bannerImage.url}
+                  alt={currentPage.bannerImage.alt}
+                  className="w-full max-w-5xl max-h-[400px] object-cover mb-4 rounded-lg shadow"
+                  style={{ borderRadius: "16px" }}
+                />
+              )}
+              <label className="inline-flex items-center px-6 py-3 bg-[#0d80f2] text-white rounded-lg cursor-pointer hover:bg-[#0b6fc2] transition mb-2">
+                <Upload className="w-5 h-5 mr-2" />
+                Upload Banner Image
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={e => {
+                    const file = e.target.files?.[0]
+                    if (file) {
+                      const url = URL.createObjectURL(file)
+                      const updatedPage = {
+                        ...currentPage,
+                        bannerImage: { url, alt: "Banner" }
+                      }
+                      setPages((prev) => prev.map((p) => (p.id === currentPage.id ? updatedPage : p)))
+                      setCurrentPage(updatedPage)
+                    }
+                  }}
+                />
+              </label>
             </div>
 
             <div className="flex flex-col items-center mb-12 w-full">

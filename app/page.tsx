@@ -19,6 +19,7 @@ interface Page {
   id: string
   name: string
   title: string
+  bannerImage?: ImageItem // <-- add this line
   featuredSection: {
     title: string
     description: string
@@ -41,6 +42,7 @@ const getStoredData = () => {
         id: "content",
         name: "Content",
         title: "Welcome to Your Content Hub",
+        bannerImage: { url: "/placeholder.svg?height=200&width=1200", alt: "Banner" }, // <-- add this line
         featuredSection: {
           title: "Elevate Your Brand with Compelling Content",
           description: "Craft and manage engaging content that resonates with your audience and drives results.",
@@ -113,13 +115,13 @@ export default function HomePage() {
   const currentPage: Page = data.pages[currentPageId] || pagesArray[0]
 
   return (
-    <div className="min-h-screen bg-[#f0f2f5]">
+    <div className="min-h-screen bg-black">
       {/* Top Navigation - User View */}
-      <header className="bg-[#ffffff] border-b border-[#dbe0e5] px-4 sm:px-6 py-4">
+      <header className="bg-[#ffffff] border-b border-[#dbe0e5] px-4 sm:px-6 py-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-[#121417] rounded"></div>
-            <span className="text-[#121417] font-semibold text-lg">CMS Platform</span>
+            
+            <span className="text-[#121417] font-semibold text-lg ml-100">CMS Platform</span>
           </div>
 
           <nav className="hidden md:flex items-center gap-4 lg:gap-8">
@@ -141,55 +143,65 @@ export default function HomePage() {
       </header>
 
       {/* Main Content - Clean User View */}
-      <main className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-[#121417] mb-6 sm:mb-8 text-center">{currentPage.title}</h1>
+      <main className="w-full mx-auto p-0">
+        <h1 className="text-3xl sm:text-4xl font-bold text-white mb-10 mt-10 text-center">{currentPage.title}</h1>
 
-        <div className="bg-[#ffffff] rounded-lg p-6 sm:p-10 mb-10 sm:mb-14 border border-[#dbe0e5]">
-          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-8 lg:gap-16">
-            <div className="flex-1">
-              <p className="text-[#61758a] text-sm mb-2">Featured</p>
-              <h2 className="text-lg sm:text-xl font-semibold text-[#121417] mb-3">
-                {currentPage.featuredSection.title}
-              </h2>
-              <p className="text-[#61758a] mb-4">{currentPage.featuredSection.description}</p>
+        <div className="w-full">
+          {/* Banner Image */}
+          {currentPage.bannerImage?.url && (
+  <div className="w-full flex justify-center bg-black">
+    <img
+      src={currentPage.bannerImage.url}
+      alt={currentPage.bannerImage.alt}
+      className="w-full max-h-[800px] object-cover"
+      style={{ maxWidth: "100%", borderRadius: "0" }}
+    />
+  </div>
+)}
+
+          {/* Featured Section */}
+          <section className="flex flex-col lg:flex-row w-full min-h-[180px] max-w-7xl mx-auto">
+            {/* Image(s) on the left */}
+            <div className="w-full lg:w-1/2 h-[160px] lg:h-auto flex items-stretch">
+              {currentPage.featuredSection.images?.[0] && (
+                <img
+                  src={currentPage.featuredSection.images[0].url}
+                  alt={currentPage.featuredSection.images[0].alt}
+                  className="object-cover w-full h-full"
+                  style={{ borderTopLeftRadius: "12px", borderBottomLeftRadius: "12px" }}
+                />
+              )}
             </div>
-            <div className="flex-shrink-0 w-full lg:w-auto flex flex-col items-center">
-              <div className="flex flex-wrap gap-4 justify-center mb-2 w-full">
-                {currentPage.featuredSection.images?.map((img, idx) => (
+            {/* Data on the right */}
+            <div className="w-full lg:w-1/2 bg-black text-white flex flex-col justify-center p-6 lg:p-8">
+              <h2 className="text-2xl font-extrabold mb-4">{currentPage.featuredSection.title}</h2>
+              <p className="text-base mb-2">{currentPage.featuredSection.description}</p>
+            </div>
+          </section>
+
+          {/* Content Sections */}
+          {currentPage.contentSections.map((section: ContentSection, idx) => (
+            <section
+              key={section.id}
+              className={`flex flex-col lg:flex-row w-full min-h-[180px] max-w-7xl mx-auto mt-8${idx === currentPage.contentSections.length - 1 ? " mb-12 pb-12" : ""}`}
+            >
+              {/* Image(s) on the left */}
+              <div className="w-full lg:w-1/2 h-[160px] lg:h-auto flex items-stretch">
+                {section.images?.[0] && (
                   <img
-                    key={idx}
-                    src={img.url}
-                    alt={img.alt}
-                    className="rounded-lg w-full max-w-[360px] h-[200px] object-cover"
+                    src={section.images[0].url}
+                    alt={section.images[0].alt}
+                    className="object-cover w-full h-full"
+                    style={{ borderTopLeftRadius: "12px", borderBottomLeftRadius: "12px" }}
                   />
-                ))}
+                )}
               </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-8 sm:space-y-12">
-          {currentPage.contentSections.map((section: ContentSection) => (
-            <div key={section.id} className="bg-[#ffffff] rounded-lg p-6 sm:p-10 border border-[#dbe0e5]">
-              <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-8 lg:gap-16">
-                <div className="flex-1">
-                  <h3 className="text-base sm:text-lg font-semibold text-[#121417] mb-3">{section.title}</h3>
-                  <p className="text-[#61758a]">{section.description}</p>
-                </div>
-                <div className="flex-shrink-0 w-full lg:w-auto flex flex-col items-center">
-                  <div className="flex flex-wrap gap-4 justify-center mb-2 w-full">
-                    {section.images?.map((img, idx) => (
-                      <img
-                        key={idx}
-                        src={img.url}
-                        alt={img.alt}
-                        className="rounded-lg w-full max-w-[360px] h-[200px] object-cover"
-                      />
-                    ))}
-                  </div>
-                </div>
+              {/* Data on the right */}
+              <div className="w-full lg:w-1/2 bg-black text-white flex flex-col justify-center p-6 lg:p-8">
+                <h3 className="text-2xl font-extrabold mb-4">{section.title}</h3>
+                <p className="text-base mb-2">{section.description}</p>
               </div>
-            </div>
+            </section>
           ))}
         </div>
       </main>
