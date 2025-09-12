@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Bell, FileText, Plus, Edit2, X, Upload, Check } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
+import axios from "axios"
 
 interface ImageItem {
   url: string
@@ -346,21 +347,21 @@ export default function AdminPage() {
     }
   }
 
-  const handleEditSectionTitle = (sectionId: string) => {
+  const handleEditSectionTitle = async (sectionId: string) => {
     if (currentPage) {
-      const section = currentPage.contentSections.find((s) => s.id === sectionId)
+      const res = await axios.get("http://localhost:3000/content/update/:pageId/:sectionId")
+      const section = res.data;
       if (section) {
-        setTempSectionTitle(section.title)
+        setTempSectionTitle(section.section_title)
         setEditingSectionTitle(sectionId)
       }
     }
   }
 
-  const handleSaveSectionTitle = (sectionId: string) => {
+  const handleSaveSectionTitle = async (sectionId: string) => {
     if (currentPage) {
-      const updatedSections = currentPage.contentSections.map((s) =>
-        s.id === sectionId ? { ...s, title: tempSectionTitle } : s,
-      )
+      const res = await axios.put("http://localhost:3000/content/update/:pageId/:sectionId",{section_title: tempSectionTitle})
+      const updatedSections = res.data;
       const updatedPage = { ...currentPage, contentSections: updatedSections }
       setPages((prev) => prev.map((p) => (p.id === currentPage.id ? updatedPage : p)))
       setCurrentPage(updatedPage)
@@ -368,21 +369,21 @@ export default function AdminPage() {
     }
   }
 
-  const handleEditSectionDescription = (sectionId: string) => {
+  const handleEditSectionDescription = async (sectionId: string) => {
     if (currentPage) {
-      const section = currentPage.contentSections.find((s) => s.id === sectionId)
+      const res = await axios.get("http://localhost:3000/content/get/:pageId/:sectionId")
+      const section = res.data;
       if (section) {
-        setTempSectionDesc(section.description)
+        setTempSectionDesc(section.section_description)
         setEditingSectionDesc(sectionId)
       }
     }
   }
 
-  const handleSaveSectionDesc = (sectionId: string) => {
+  const handleSaveSectionDesc = async (sectionId: string) => {
     if (currentPage) {
-      const updatedSections = currentPage.contentSections.map((s) =>
-        s.id === sectionId ? { ...s, description: tempSectionDesc } : s,
-      )
+      const res = await axios.put("http://localhost:3000/content/update/:pageId/:sectionId",{section_description: tempSectionDesc})
+      const updatedSections = res.data;
       const updatedPage = { ...currentPage, contentSections: updatedSections }
       setPages((prev) => prev.map((p) => (p.id === currentPage.id ? updatedPage : p)))
       setCurrentPage(updatedPage)
@@ -434,27 +435,27 @@ export default function AdminPage() {
     }
   }
 
-  const handleDeleteSectionDescription = (sectionId: string) => {
+  const handleDeleteSectionDescription = async (sectionId: string) => {
     if (confirm("Are you sure you want to delete this description?") && currentPage) {
-      const updatedSections = currentPage.contentSections.map((s) =>
-        s.id === sectionId ? { ...s, description: "" } : s,
-      )
+      const res = await axios.delete("http://localhost:3000/content/delete/:pageId/:sectionId")
+      const updatedSections = res.data;
       const updatedPage = { ...currentPage, contentSections: updatedSections }
       setPages((prev) => prev.map((p) => (p.id === currentPage.id ? updatedPage : p)))
       setCurrentPage(updatedPage)
     }
   }
 
-  const handleDeleteSection = (sectionId: string) => {
+  const handleDeleteSection = async (sectionId: string) => {
     if (confirm("Are you sure you want to delete this entire section?") && currentPage) {
-      const updatedSections = currentPage.contentSections.filter((s) => s.id !== sectionId)
+      const res = await axios.delete("http://localhost:3000/content/delete/:pageId/:sectionId")
+      const updatedSections = res.data;
       const updatedPage = { ...currentPage, contentSections: updatedSections }
       setPages((prev) => prev.map((p) => (p.id === currentPage.id ? updatedPage : p)))
       setCurrentPage(updatedPage)
     }
   }
 
-  const handleAddSection = () => {
+  const handleAddSection = async () => {
     if (currentPage) {
       const newSection: ContentSection = {
         id: Date.now().toString(),
@@ -462,6 +463,7 @@ export default function AdminPage() {
         description: "New section description",
         images: [{ url: "/placeholder.svg?height=150&width=200", alt: "New content section" }],
       }
+      const res = await axios.post("http://localhost:3000/content/add/:pageId", newSection)
       const updatedSections = [...currentPage.contentSections, newSection]
       const updatedPage = { ...currentPage, contentSections: updatedSections }
       setPages((prev) => prev.map((p) => (p.id === currentPage.id ? updatedPage : p)))
