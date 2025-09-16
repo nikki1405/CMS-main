@@ -7,10 +7,18 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Bell, FileText, Plus, Edit2, X, Upload, Check } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
+import axios from "axios"
+
 
 interface ImageItem {
-  url: string
-  alt: string
+  id?: string;
+  _id?: string; // Backend ID
+  url: string;
+  alt: string;
+  fileName?: string;
+  cloudinaryId?: string;
+  format?: string;
+  size?: number;
 }
 
 interface ContentSection {
@@ -258,55 +266,76 @@ export default function AdminPage() {
     setShowImageUpload(true)
   }
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file && uploadingFor && currentPage) {
-      const imageUrl = URL.createObjectURL(file)
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL; 
+
+const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const file = event.target.files?.[0];
+  if (file && uploadingFor && currentPage) {
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const response = await fetch(`${API_BASE_URL}/upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Image upload failed");
+      }
+      const data = await response.json();
+      const image = { ...data, id: data._id , alt: file.name || "Uploaded image" };
+
       if (uploadingFor.type === "featured") {
         const updatedImages = [
-          { url: imageUrl, alt: `Featured image` },
+          image,
           ...currentPage.featuredSection.images.slice(1),
-        ]
+        ];
         const updatedPage = {
           ...currentPage,
           featuredSection: { ...currentPage.featuredSection, images: updatedImages },
-        }
-        setPages((prev) => prev.map((p) => (p.id === currentPage.id ? updatedPage : p)))
-        setCurrentPage(updatedPage)
+        };
+        setPages((prev) => prev.map((p) => (p.id === currentPage.id ? updatedPage : p)));
+        setCurrentPage(updatedPage);
       } else if (uploadingFor.type === "section" && uploadingFor.id) {
         const updatedSections = currentPage.contentSections.map((s) =>
           s.id === uploadingFor.id
-            ? { ...s, images: [{ url: imageUrl, alt: `Section image` }, ...s.images.slice(1)] }
+            ? { ...s, images: [image, ...s.images.slice(1)] }
             : s
-        )
-        const updatedPage = { ...currentPage, contentSections: updatedSections }
-        setPages((prev) => prev.map((p) => (p.id === currentPage.id ? updatedPage : p)))
-        setCurrentPage(updatedPage)
+        );
+        const updatedPage = { ...currentPage, contentSections: updatedSections };
+        setPages((prev) => prev.map((p) => (p.id === currentPage.id ? updatedPage : p)));
+        setCurrentPage(updatedPage);
       } else if (uploadingFor.type === "add" && uploadingFor.id) {
         const updatedSections = currentPage.contentSections.map((s) =>
           s.id === uploadingFor.id
-            ? { ...s, images: [...s.images, { url: imageUrl, alt: `Section image ${s.images.length + 1}` }] }
+            ? { ...s, images: [...s.images, image] }
             : s
-        )
-        const updatedPage = { ...currentPage, contentSections: updatedSections }
-        setPages((prev) => prev.map((p) => (p.id === currentPage.id ? updatedPage : p)))
-        setCurrentPage(updatedPage)
+        );
+        const updatedPage = { ...currentPage, contentSections: updatedSections };
+        setPages((prev) => prev.map((p) => (p.id === currentPage.id ? updatedPage : p)));
+        setCurrentPage(updatedPage);
       } else if (uploadingFor.type === "add") {
         const updatedImages = [
           ...currentPage.featuredSection.images,
-          { url: imageUrl, alt: `Featured image ${currentPage.featuredSection.images.length + 1}` }
-        ]
+          image
+        ];
         const updatedPage = {
           ...currentPage,
           featuredSection: { ...currentPage.featuredSection, images: updatedImages },
-        }
-        setPages((prev) => prev.map((p) => (p.id === currentPage.id ? updatedPage : p)))
-        setCurrentPage(updatedPage)
+        };
+        setPages((prev) => prev.map((p) => (p.id === currentPage.id ? updatedPage : p)));
+        setCurrentPage(updatedPage);
       }
-      setShowImageUpload(false)
-      setUploadingFor(null)
+
+      setShowImageUpload(false);
+      setUploadingFor(null);
+    } catch (error) {
+      console.error("Image upload error:", error);
     }
   }
+};
+
 
   const handleEditFeaturedTitle = () => {
     if (currentPage) {
@@ -390,23 +419,67 @@ export default function AdminPage() {
     }
   }
 
-  const handleDeleteFeaturedImage = (index: number = 0) => {
-    if (confirm("Are you sure you want to delete this image?") && currentPage) {
-      const updatedImages = currentPage.featuredSection.images.filter((_, i) => i !== index)
+const handleDeleteFeaturedImage = async (index: number = 0) => {
+  if (confirm("Are you sure you want to delete this image?") && currentPage) {
+    const image = currentPage.featuredSection.images[index];
+    if (!image || !image.id) {
+      console.error("Image ID is missing");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/${image.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete image");
+      }
+
+      const updatedImages = currentPage.featuredSection.images.filter((_, i) => i !== index);
       const updatedPage = {
         ...currentPage,
         featuredSection: {
           ...currentPage.featuredSection,
-          images: updatedImages.length > 0 ? updatedImages : [{ url: "/placeholder.svg?height=200&width=400", alt: "Placeholder" }],
+          images: updatedImages.length > 0 ? updatedImages : [
+            { url: "/placeholder.svg?height=200&width=400", alt: "Placeholder" }
+          ],
         },
-      }
-      setPages((prev) => prev.map((p) => (p.id === currentPage.id ? updatedPage : p)))
-      setCurrentPage(updatedPage)
+      };
+
+      setPages((prev) => prev.map((p) => (p.id === currentPage.id ? updatedPage : p)));
+      setCurrentPage(updatedPage);
+    } catch (error) {
+      console.error("Error deleting image:", error);
     }
   }
+};
 
-  const handleDeleteSectionImage = (sectionId: string, index: number = 0) => {
-    if (confirm("Are you sure you want to delete this image?") && currentPage) {
+
+
+const handleDeleteSectionImage = async (sectionId: string, index: number = 0) => {
+  if (confirm("Are you sure you want to delete this image?") && currentPage) {
+    const section = currentPage.contentSections.find((s) => s.id === sectionId);
+    if (!section) {
+      console.error("Section not found");
+      return;
+    }
+
+    const image = section.images[index];
+    if (!image || !image.id) {
+      console.error("Image ID is missing");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/${image.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete image");
+      }
+
       const updatedSections = currentPage.contentSections.map((s) =>
         s.id === sectionId
           ? {
@@ -415,13 +488,19 @@ export default function AdminPage() {
                 ? s.images.filter((_, i) => i !== index)
                 : [{ url: "/placeholder.svg?height=150&width=200", alt: "Placeholder" }],
             }
-          : s,
-      )
-      const updatedPage = { ...currentPage, contentSections: updatedSections }
-      setPages((prev) => prev.map((p) => (p.id === currentPage.id ? updatedPage : p)))
-      setCurrentPage(updatedPage)
+          : s
+      );
+
+      const updatedPage = { ...currentPage, contentSections: updatedSections };
+
+      setPages((prev) => prev.map((p) => (p.id === currentPage.id ? updatedPage : p)));
+      setCurrentPage(updatedPage);
+    } catch (error) {
+      console.error("Error deleting section image:", error);
     }
   }
+};
+
 
   const handleDeleteFeaturedDescription = () => {
     if (confirm("Are you sure you want to delete this description?") && currentPage) {
