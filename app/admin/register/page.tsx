@@ -5,12 +5,10 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
 
-export default function AdminLogin() {
+export default function AdminRegister() {
   const [name, setName] = useState("")
   const [password, setPassword] = useState("")
-  const [rememberMe, setRememberMe] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
 
@@ -19,7 +17,7 @@ export default function AdminLogin() {
     setIsLoading(true)
 
     try {
-      const res = await fetch("http://localhost:5000/api/admin/login", {
+      const res = await fetch("http://localhost:5000/api/admin/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, password }),
@@ -28,13 +26,13 @@ export default function AdminLogin() {
       const data = await res.json()
 
       if (!res.ok) {
-        alert(data.message || "Login failed")
+        alert(data.message || "Registration failed")
         setIsLoading(false)
         return
       }
 
       localStorage.setItem("adminToken", data.token)
-      if (rememberMe) localStorage.setItem("rememberMe", "true")
+      alert("Admin registered successfully!")
       setIsLoading(false)
       router.push("/")
     } catch (err) {
@@ -53,8 +51,8 @@ export default function AdminLogin() {
               <span className="text-white font-bold text-sm">A</span>
             </div>
           </div>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">Admin Login</h2>
-          <p className="mt-2 text-sm text-gray-600">Sign in to access the admin panel</p>
+          <h2 className="mt-6 text-3xl font-bold text-gray-900">Register Admin</h2>
+          <p className="mt-2 text-sm text-gray-600">Create a new admin account</p>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -92,31 +90,13 @@ export default function AdminLogin() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="remember-me"
-                checked={rememberMe}
-                onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-              />
-              <Label htmlFor="remember-me" className="text-sm text-gray-700">
-                Remember me
-              </Label>
-            </div>
-            <div className="text-sm">
-              <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
-                Forgot your password?
-              </a>
-            </div>
-          </div>
-
           <div>
             <Button
               type="submit"
               className="w-full bg-blue-600 hover:bg-blue-700 text-white"
               disabled={isLoading}
             >
-              {isLoading ? "Signing in..." : "Sign in"}
+              {isLoading ? "Registering..." : "Register"}
             </Button>
           </div>
         </form>
